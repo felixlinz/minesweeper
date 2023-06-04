@@ -191,21 +191,22 @@ class MinesweeperAI():
         """
         self.moves_made.add(cell)
         self.mark_safe(cell)
-        self.knowledge.append(Sentence(cell, count))
+        self.knowledge.append(Sentence({cell}, count))
         set1, count = self.knowledge[0].cells, self.knowledge[0].count
-        metaset = set(set1)
+        metaset = set1
         for i, knowledge in enumerate(self.knowledge[0:]):
             metaset = metaset - knowledge.cells
             count -= knowledge.count
             if len(metaset) == count and count != 0:
                 for cell in metaset:
                     self.mark_mine(cell)
+                    self.knowledge.append(Sentence({cell}, 1))
                     metaset = knowledge.cells
                     count = knowledge.count
             elif len(metaset) == count:
                 for cell in metaset:
                     self.mark_safe(cell)
-                    self.knowledge.append(Sentence(cell, 1))
+                    self.knowledge.append(Sentence({cell}, 1))
             elif count != 0:
                 self.knowledge.append(Sentence(metaset, count))
             else:
@@ -223,7 +224,10 @@ class MinesweeperAI():
         """
         for sentence in self.knowledge:
             if sentence.known_safes():
-                return list(sentence.known_safes()).pop()
+                moves = list(sentence.known_safes())
+                print(moves[-1])
+                return moves[-1]
+                        
 
 
     def make_random_move(self):
