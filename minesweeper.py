@@ -191,26 +191,32 @@ class MinesweeperAI():
             5) add any new sentences to the AI's knowledge base
                if they can be inferred from existing knowledge
         """
-        compare = []
         self.moves_made.add(cell)
-        self.saves.add(cell)
+        self.mark_safe(cell)
         newsentence = Sentence(self.neighbouring_cells(cell), count)
         if (safecells := newsentence.known_safes()):
-            self.safes.extend(safecells)
+            self.safes.update(safecells)
         elif (minecells := newsentence.known_mines()):
-            self.mines.extend(minecells)
+            self.mines.update(minecells)
         self.knowledge.append(newsentence)
+
+        compare = []
         for sentence in self.knowledge[:-1]:
-            if newsentence.cells.issubset(sentence) or newsentence.cells.issuperset(sentence):
-                compare.append(sentence)
-        for sentence in compare:
-            metasentence = Sentence(newsentence.cells.symmetric_difference(sentence.cells), newsentence.count - sentence.count)
-            self.knowledge.append(metasentence)
+            if newsentence.cells.issubset(sentence.cells) or newsentence.cells.issuperset(sentence.cells):
+                if sentence != newsentence:
+                    compare.append(sentence)
+        if compare:
+            for sentence in compare:
+                metasentence = Sentence(newsentence.cells.symmetric_difference(sentence.cells), newsentence.count - sentence.count)
+                self.knowledge.append(metasentence)
         for knowledge in self.knowledge:
             if (safecells := knowledge.known_safes()):
-                self.safes.extend(safecells)
+                for cell in safecells:
+                    self.mark_safe(cell)
             elif (minecells := knowledge.known_mines()):
-                self.mines.extend(minecells)
+                for cell in minecells:
+                    self.mark_mine(cell)
+
 
     def neighbouring_cells(self, cell):
         neighbours = set()
@@ -256,7 +262,8 @@ class MinesweeperAI():
             1) have not already been chosen, and
             2) are not known to be mines
         """
-        while True:
-            possible_move = (random.randint(0, self.height - 1), random.randint(0, self.width -1))
-            if possible_move not in self.moves_made and possible_move not in self.mines:
-                return  possible_move
+        possible_moves = set()
+        for i in range(self.height):
+            for j in range(self.width):
+                possible_moves.add((i,j))
+        return random.choice(list(possible_moves.difference(self.moves_made, self.mines)))
