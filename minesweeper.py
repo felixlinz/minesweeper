@@ -123,7 +123,7 @@ class Sentence():
         """
         if cell in self.cells:
             self.count -= 1
-            self.cells.remove(cell)
+            self.cells.discard(cell)
         else:
             return
 
@@ -190,27 +190,25 @@ class MinesweeperAI():
                if they can be inferred from existing knowledge
         """
         self.moves_made.add(cell)
-        self.mark_safe(cell)
-        self.knowledge.append(Sentence({cell}, count))
-        set1, count = self.knowledge[0].cells, self.knowledge[0].count
-        metaset = set1
-        for i, knowledge in enumerate(self.knowledge[0:]):
-            metaset = metaset - knowledge.cells
-            count -= knowledge.count
-            if len(metaset) == count and count != 0:
-                for cell in metaset:
-                    self.mark_mine(cell)
-                    self.knowledge.append(Sentence({cell}, 1))
-                    metaset = knowledge.cells
-                    count = knowledge.count
-            elif len(metaset) == count:
-                for cell in metaset:
-                    self.mark_safe(cell)
-                    self.knowledge.append(Sentence({cell}, 1))
-            elif count != 0:
-                self.knowledge.append(Sentence(metaset, count))
-            else:
-                metaset, count = knowledge.cells, knowledge.count
+        self.saves.add(cell)
+
+    def neighbouring_cells(self, cell):
+        neighbours = set()
+        removes = set()
+        i, j = cell
+        steps = [-1,0,1]
+        for delta_x in steps:
+            for delta_y in steps:
+                neighbours.add((i+delta_x, j+delta_y))
+        removes.add(cell)
+        for neighbour in neighbours:
+            x,y = neighbour
+            if x not in (size := range(self.height)) or y not in size:
+                removes.add(neighbour)
+            elif neighbour in self.moves_made:
+                removes.add(neighbour)
+        return neighbours.difference(removes)
+
 
 
     def make_safe_move(self):
@@ -222,13 +220,14 @@ class MinesweeperAI():
         This function may use the knowledge in self.mines, self.safes
         and self.moves_made, but should not modify any of those values.
         """
-        for sentence in self.knowledge:
-            if sentence.known_safes():
-                moves = list(sentence.known_safes())
-                print(moves[-1])
-                return moves[-1]
-                        
-
+        try:
+            move = self.safes.pop()
+            self.moves_made.add(move)
+            return move
+        except KeyError:
+            move = self.make_random_move()
+            self.moves_made.add(move)
+            return move
 
     def make_random_move(self):
         """
@@ -240,4 +239,4 @@ class MinesweeperAI():
         while True:
             possible_move = (random.randint(0, self.height - 1), random.randint(0, self.width -1))
             if possible_move not in self.moves_made and possible_move not in self.mines:
-                return 
+                return  possible_move
