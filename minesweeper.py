@@ -123,10 +123,10 @@ class Sentence():
         Updates internal knowledge representation given the fact that
         a cell is known to be a mine.
         """
-        if cell in self.cells:
+        try:
+            self.cells.remove(cell)
             self.count -= 1
-            self.cells.discard(cell)
-        else:
+        except KeyError:
             return
 
     def mark_safe(self, cell):
@@ -191,11 +191,26 @@ class MinesweeperAI():
             5) add any new sentences to the AI's knowledge base
                if they can be inferred from existing knowledge
         """
+        compare = []
         self.moves_made.add(cell)
         self.saves.add(cell)
-        self.knowledge.append(Sentence(self.neighbouring_cells(cell)), count)
-        for knowledgesentence in self.knowledge:
-            if knowledgesentence.
+        newsentence = Sentence(self.neighbouring_cells(cell), count)
+        if (safecells := newsentence.known_safes()):
+            self.safes.extend(safecells)
+        elif (minecells := newsentence.known_mines()):
+            self.mines.extend(minecells)
+        self.knowledge.append(newsentence)
+        for sentence in self.knowledge[:-1]:
+            if newsentence.cells.issubset(sentence) or newsentence.cells.issuperset(sentence):
+                compare.append(sentence)
+        for sentence in compare:
+            metasentence = Sentence(newsentence.cells.symmetric_difference(sentence.cells), newsentence.count - sentence.count)
+            self.knowledge.append(metasentence)
+        for knowledge in self.knowledge:
+            if (safecells := knowledge.known_safes()):
+                self.safes.extend(safecells)
+            elif (minecells := knowledge.known_mines()):
+                self.mines.extend(minecells)
 
     def neighbouring_cells(self, cell):
         neighbours = set()
