@@ -162,6 +162,7 @@ class MinesweeperAI:
         to mark that cell as a mine as well.
         """
         self.mines.add(cell)
+
         for sentence in self.knowledge:
             sentence.mark_mine(cell)
 
@@ -171,6 +172,7 @@ class MinesweeperAI:
         to mark that cell as safe as well.
         """
         self.safes.add(cell)
+        
         for sentence in self.knowledge:
             sentence.mark_safe(cell)
 
