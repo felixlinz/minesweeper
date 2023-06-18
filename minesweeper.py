@@ -2,14 +2,12 @@ import itertools
 import random
 
 
-
-class Minesweeper():
+class Minesweeper:
     """
     Minesweeper game representation
     """
 
     def __init__(self, height=8, width=8, mines=8):
-
         # Set initial width, height, and number of mines
         self.height = height
         self.width = width
@@ -66,7 +64,6 @@ class Minesweeper():
         # Loop over all cells within one row and column
         for i in range(cell[0] - 1, cell[0] + 2):
             for j in range(cell[1] - 1, cell[1] + 2):
-
                 # Ignore the cell itself
                 if (i, j) == cell:
                     continue
@@ -85,7 +82,7 @@ class Minesweeper():
         return self.mines_found == self.mines
 
 
-class Sentence():
+class Sentence:
     """
     Logical statement about a Minesweeper game
     A sentence consists of a set of board cells,
@@ -107,7 +104,7 @@ class Sentence():
         Returns the set of all cells in self.cells known to be mines.
         """
         if self.count == len(self.cells):
-            return self.cells   
+            return self.cells
         return False
 
     def known_safes(self):
@@ -137,13 +134,12 @@ class Sentence():
         self.cells.discard(cell)
 
 
-class MinesweeperAI():
+class MinesweeperAI:
     """
     Minesweeper game player
     """
 
     def __init__(self, height=8, width=8):
-
         # Set initial height and width
         self.height = height
         self.width = width
@@ -193,49 +189,58 @@ class MinesweeperAI():
         """
         self.moves_made.add(cell)
         self.mark_safe(cell)
+        
         newsentence = Sentence(self.neighbouring_cells(cell), count)
-        if (safecells := newsentence.known_safes()):
+        if safecells := newsentence.known_safes():
             self.safes.update(safecells)
-        elif (minecells := newsentence.known_mines()):
+        elif minecells := newsentence.known_mines():
             self.mines.update(minecells)
         self.knowledge.append(newsentence)
+        
 
         compare = []
         for sentence in self.knowledge[:-1]:
-            if newsentence.cells.issubset(sentence.cells) or newsentence.cells.issuperset(sentence.cells):
-                if sentence != newsentence:
+            if newsentence.cells.issubset(
+                sentence.cells
+            ) or newsentence.cells.issuperset(sentence.cells):
+                if sentence.cells != newsentence.cells:
                     compare.append(sentence)
         if compare:
             for sentence in compare:
-                metasentence = Sentence(newsentence.cells.symmetric_difference(sentence.cells), newsentence.count - sentence.count)
-                self.knowledge.append(metasentence)
+                self.knowledge.append(
+                    Sentence(
+                        newsentence.cells.symmetric_difference(sentence.cells),
+                        max(newsentence.count, sentence.count)
+                        - min(newsentence.count, sentence.count),
+                    )
+                )
         for knowledge in self.knowledge:
-            if (safecells := knowledge.known_safes()):
+            if safecells := knowledge.known_safes():
                 for cell in safecells:
                     self.mark_safe(cell)
-            elif (minecells := knowledge.known_mines()):
+            elif minecells := knowledge.known_mines():
                 for cell in minecells:
                     self.mark_mine(cell)
-
 
     def neighbouring_cells(self, cell):
         neighbours = set()
         removes = set()
         i, j = cell
-        steps = [-1,0,1]
+        steps = [-1, 0, 1]
+
         for delta_x in steps:
             for delta_y in steps:
-                neighbours.add((i+delta_x, j+delta_y))
+                neighbours.add((i + delta_x, j + delta_y))
         removes.add(cell)
+
         for neighbour in neighbours:
-            x,y = neighbour
+            x, y = neighbour
             if x not in (size := range(self.height)) or y not in size:
                 removes.add(neighbour)
             elif neighbour in self.moves_made:
                 removes.add(neighbour)
+
         return neighbours.difference(removes)
-
-
 
     def make_safe_move(self):
         """
@@ -265,5 +270,7 @@ class MinesweeperAI():
         possible_moves = set()
         for i in range(self.height):
             for j in range(self.width):
-                possible_moves.add((i,j))
-        return random.choice(list(possible_moves.difference(self.moves_made, self.mines)))
+                possible_moves.add((i, j))
+        return random.choice(
+            list(possible_moves.difference(self.moves_made, self.mines))
+        )
