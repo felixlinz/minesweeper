@@ -131,8 +131,10 @@ class Sentence:
         Updates internal knowledge representation given the fact that
         a cell is known to be safe.
         """
-        self.cells.discard(cell)
-
+        try:
+            self.cells.remove(cell)
+        except KeyError:
+            return 
 
 class MinesweeperAI:
     """
@@ -187,40 +189,49 @@ class MinesweeperAI:
             5) add any new sentences to the AI's knowledge base
                if they can be inferred from existing knowledge
         """
+        # mark as move made, mark as safe
         self.moves_made.add(cell)
         self.mark_safe(cell)
-        
+
+        # add to knowledge base and figuere out if anything can be directly conculeded from them
         newsentence = Sentence(self.neighbouring_cells(cell), count)
-        if safecells := newsentence.known_safes():
+        if (safecells := newsentence.known_safes()):
             self.safes.update(safecells)
-        elif minecells := newsentence.known_mines():
+        elif (minecells := newsentence.known_mines()):
             self.mines.update(minecells)
         self.knowledge.append(newsentence)
-        
 
-        compare = []
-        for sentence in self.knowledge[:-1]:
-            if newsentence.cells.issubset(
-                sentence.cells
-            ) or newsentence.cells.issuperset(sentence.cells):
-                if sentence.cells != newsentence.cells:
-                    compare.append(sentence)
-        if compare:
-            for sentence in compare:
+        # infer new sets 
+        related_sets = []
+        for sentence in self.knowledge:
+            subsentences = [subsentence for subsentence in self.knowledge if subsentence.issubset(sentence) and subsentence != sentence]
+            if subsentences:
+                subsentences.insert(0, sentence)
+                related_sets.append(subsentences)
+    
+
+        # compare every comparable set 
+        if related_sets:
+            for subsentences in related_sets:
+                parentsentence = subsentences[0]
+
+                for subsentence in subsentences[1:]:
                 self.knowledge.append(
                     Sentence(
-                        newsentence.cells.symmetric_difference(sentence.cells),
-                        max(newsentence.count, sentence.count)
-                        - min(newsentence.count, sentence.count),
+                        parentsentence.cells.symmetric_difference(subsentence.cells),
+                        parentsentence.count - subsentence.count
                     )
                 )
+
+        # figuere out if any other safe cells can be inferred
         for knowledge in self.knowledge:
-            if safecells := knowledge.known_safes():
+            if (safecells := knowledge.known_safes()):
                 for cell in safecells:
                     self.mark_safe(cell)
-            elif minecells := knowledge.known_mines():
+            elif (minecells := knowledge.known_mines()):
                 for cell in minecells:
                     self.mark_mine(cell)
+
 
     def neighbouring_cells(self, cell):
         neighbours = set()
