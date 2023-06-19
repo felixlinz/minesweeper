@@ -2,12 +2,13 @@ import itertools
 import random
 
 
-class Minesweeper:
+class Minesweeper():
     """
     Minesweeper game representation
     """
 
     def __init__(self, height=8, width=8, mines=8):
+
         # Set initial width, height, and number of mines
         self.height = height
         self.width = width
@@ -64,6 +65,7 @@ class Minesweeper:
         # Loop over all cells within one row and column
         for i in range(cell[0] - 1, cell[0] + 2):
             for j in range(cell[1] - 1, cell[1] + 2):
+
                 # Ignore the cell itself
                 if (i, j) == cell:
                     continue
@@ -82,7 +84,7 @@ class Minesweeper:
         return self.mines_found == self.mines
 
 
-class Sentence:
+class Sentence():
     """
     Logical statement about a Minesweeper game
     A sentence consists of a set of board cells,
@@ -103,7 +105,7 @@ class Sentence:
         """
         Returns the set of all cells in self.cells known to be mines.
         """
-        if self.count == len(self.cells):
+        if self.count != 0 and self.count == len(self.cells):
             return self.cells
         return False
 
@@ -135,13 +137,16 @@ class Sentence:
             self.cells.remove(cell)
         except KeyError:
             return 
+        
 
-class MinesweeperAI:
+
+class MinesweeperAI():
     """
     Minesweeper game player
     """
 
     def __init__(self, height=8, width=8):
+
         # Set initial height and width
         self.height = height
         self.width = width
@@ -162,7 +167,6 @@ class MinesweeperAI:
         to mark that cell as a mine as well.
         """
         self.mines.add(cell)
-
         for sentence in self.knowledge:
             sentence.mark_mine(cell)
 
@@ -172,7 +176,6 @@ class MinesweeperAI:
         to mark that cell as safe as well.
         """
         self.safes.add(cell)
-        
         for sentence in self.knowledge:
             sentence.mark_safe(cell)
 
@@ -204,57 +207,73 @@ class MinesweeperAI:
         self.knowledge.append(newsentence)
 
         # infer new sets 
-        related_sets = []
-        for sentence in self.knowledge:
-            subsentences = [subsentence for subsentence in self.knowledge if subsentence.issubset(sentence) and subsentence != sentence]
-            if subsentences:
-                subsentences.insert(0, sentence)
-                related_sets.append(subsentences)
-    
+        if len(self.safes.difference(self.moves_made)) == 0:
+            related_sets = []
+            for sentence in self.knowledge:
+                subsentences = [sentence]
+                for subsentence in self.knowledge:
+                    if subsentence.cells.issubset(sentence.cells) and subsentence != sentence:
+                        subsentences.append(subsentence)
+                if len(subsentences) > 1:
+                    related_sets.append(subsentences)
+        
 
-        # compare every comparable set 
-        if related_sets:
-            for subsentences in related_sets:
-                parentsentence = subsentences[0]
+            # compare every comparable set 
+            if related_sets:
+                for subsentences in related_sets:
+                    parentsentence = subsentences[0]
 
-                for subsentence in subsentences[1:]:
-                self.knowledge.append(
-                    Sentence(
-                        parentsentence.cells.symmetric_difference(subsentence.cells),
-                        parentsentence.count - subsentence.count
-                    )
-                )
+                    for subsentence in subsentences[1:]:
+                        self.knowledge.append(
+                            Sentence(
+                                parentsentence.cells.symmetric_difference(subsentence.cells),
+                                parentsentence.count - subsentence.count
+                            )
+                        )
 
-        # figuere out if any other safe cells can be inferred
+            # figuere out if any other safe cells can be inferred
+            safes = set()
+            mines = set()
+
+            for knowledge in self.knowledge:
+                if (safecells := knowledge.known_safes()):
+                    for cell in safecells:
+                        safes.add(cell)
+                elif (minecells := knowledge.known_mines()):
+                    for cell in minecells:
+                        mines.add(cell)
+                elif len(knowledge.cells) == 0:
+                    del knowledge
+
+            for cell in safes:
+                self.mark_safe(cell)
+            for cell in mines:
+                self.mark_mine(cell)
+        
+        # remove any duplicates and other useless crap
+        no_duplicates_set = []
         for knowledge in self.knowledge:
-            if (safecells := knowledge.known_safes()):
-                for cell in safecells:
-                    self.mark_safe(cell)
-            elif (minecells := knowledge.known_mines()):
-                for cell in minecells:
-                    self.mark_mine(cell)
-
-
+            if knowledge not in no_duplicates_set and len(knowledge.cells) > 0:
+                no_duplicates_set.append(knowledge)
+        self.knowledge = list(no_duplicates_set)
+            
     def neighbouring_cells(self, cell):
         neighbours = set()
         removes = set()
         i, j = cell
         steps = [-1, 0, 1]
 
-        for delta_x in steps:
-            for delta_y in steps:
-                neighbours.add((i + delta_x, j + delta_y))
-        removes.add(cell)
+        for step_x in steps:
+            for step_y in steps:
+                neighbours.add((i + step_x, j + step_y))  
+        removes.add(cell) 
 
         for neighbour in neighbours:
             x, y = neighbour
-            if x not in (size := range(self.height)) or y not in size:
+            if x not in range(self.height) or y not in range(self.width):
                 removes.add(neighbour)
-            elif neighbour in self.moves_made:
-                removes.add(neighbour)
-
-        return neighbours.difference(removes)
-
+        return neighbours.difference(removes, self.moves_made)
+    
     def make_safe_move(self):
         """
         Returns a safe cell to choose on the Minesweeper board.
@@ -265,13 +284,10 @@ class MinesweeperAI:
         and self.moves_made, but should not modify any of those values.
         """
         try:
-            move = self.safes.pop()
-            self.moves_made.add(move)
+            move = self.safes.difference(self.moves_made).pop()
             return move
         except KeyError:
-            move = self.make_random_move()
-            self.moves_made.add(move)
-            return move
+            return None
 
     def make_random_move(self):
         """
@@ -284,6 +300,9 @@ class MinesweeperAI:
         for i in range(self.height):
             for j in range(self.width):
                 possible_moves.add((i, j))
-        return random.choice(
-            list(possible_moves.difference(self.moves_made, self.mines))
-        )
+        try:
+            return random.choice(
+                list(possible_moves.difference(self.moves_made, self.mines))
+                )
+        except IndexError:
+            return None
