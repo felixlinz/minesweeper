@@ -251,11 +251,11 @@ class MinesweeperAI():
                 self.mark_mine(cell)
         
         # remove any duplicates and other useless crap
-        no_duplicates_set = []
+        no_duplicates = []
         for knowledge in self.knowledge:
-            if knowledge not in no_duplicates_set and len(knowledge.cells) > 0:
-                no_duplicates_set.append(knowledge)
-        self.knowledge = list(no_duplicates_set)
+            if knowledge not in no_duplicates and len(knowledge.cells) > 0:
+                no_duplicates.append(knowledge)
+        self.knowledge = list(no_duplicates)
             
     def neighbouring_cells(self, cell):
         neighbours = set()
