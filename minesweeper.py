@@ -2,13 +2,12 @@ import itertools
 import random
 
 
-class Minesweeper():
+class Minesweeper:
     """
     Minesweeper game representation
     """
 
     def __init__(self, height=8, width=8, mines=8):
-
         # Set initial width, height, and number of mines
         self.height = height
         self.width = width
@@ -65,7 +64,6 @@ class Minesweeper():
         # Loop over all cells within one row and column
         for i in range(cell[0] - 1, cell[0] + 2):
             for j in range(cell[1] - 1, cell[1] + 2):
-
                 # Ignore the cell itself
                 if (i, j) == cell:
                     continue
@@ -84,7 +82,7 @@ class Minesweeper():
         return self.mines_found == self.mines
 
 
-class Sentence():
+class Sentence:
     """
     Logical statement about a Minesweeper game
     A sentence consists of a set of board cells,
@@ -136,17 +134,15 @@ class Sentence():
         try:
             self.cells.remove(cell)
         except KeyError:
-            return 
-        
+            return
 
 
-class MinesweeperAI():
+class MinesweeperAI:
     """
     Minesweeper game player
     """
 
     def __init__(self, height=8, width=8):
-
         # Set initial height and width
         self.height = height
         self.width = width
@@ -198,65 +194,76 @@ class MinesweeperAI():
         self.moves_made.add(cell)
         self.mark_safe(cell)
 
-        # add to knowledge base and figuere out if anything can be directly conculeded from them
+        # add to knowledge base and figuere out if anything can be directly conculeded from it
         newsentence = Sentence(self.neighbouring_cells(cell), count)
-        if (safecells := newsentence.known_safes()):
+        if safecells := newsentence.known_safes():
             self.safes.update(safecells)
-        elif (minecells := newsentence.known_mines()):
+        elif minecells := newsentence.known_mines():
             self.mines.update(minecells)
         self.knowledge.append(newsentence)
-
-        # infer new sets 
-        if len(self.safes.difference(self.moves_made)) == 0:
+        
+        if self.safes.difference(self.moves_made):
+            return
+        # infer new sets
+        while True:
+            reference_length = len(self.knowledge)
             related_sets = []
             for sentence in self.knowledge:
                 subsentences = [sentence]
                 for subsentence in self.knowledge:
-                    if subsentence.cells.issubset(sentence.cells) and subsentence != sentence:
+                    if (subsentence.cells.issubset(sentence.cells)
+                        and subsentence != sentence):
                         subsentences.append(subsentence)
                 if len(subsentences) > 1:
                     related_sets.append(subsentences)
-        
 
-            # compare every comparable set 
+            # compare every comparable set
             if related_sets:
                 for subsentences in related_sets:
                     parentsentence = subsentences[0]
 
                     for subsentence in subsentences[1:]:
-                        self.knowledge.append(
-                            Sentence(
-                                parentsentence.cells.symmetric_difference(subsentence.cells),
-                                parentsentence.count - subsentence.count
+                        inferred_sentence = (Sentence(
+                                parentsentence.cells.symmetric_difference(
+                                    subsentence.cells),
+                                parentsentence.count - subsentence.count,
                             )
                         )
+                        if inferred_sentence not in subsentences:
+                            self.knowledge.append(inferred_sentence)
+                            
 
-            # figuere out if any other safe cells can be inferred
-            safes = set()
-            mines = set()
+                # figuere out if any other safe cells can be inferred
+                safes = set()
+                mines = set()
 
+                for knowledge in self.knowledge:
+                    if safecells := knowledge.known_safes():
+                        for cell in safecells:
+                            safes.add(cell)
+                    elif minecells := knowledge.known_mines():
+                        for cell in minecells:
+                            mines.add(cell)
+                    elif len(knowledge.cells) == 0:
+                        del knowledge
+
+                for cell in safes:
+                    self.mark_safe(cell)
+                for cell in mines:
+                    self.mark_mine(cell)
+
+            # remove any duplicates and other useless crap
+            no_duplicates = []
             for knowledge in self.knowledge:
-                if (safecells := knowledge.known_safes()):
-                    for cell in safecells:
-                        safes.add(cell)
-                elif (minecells := knowledge.known_mines()):
-                    for cell in minecells:
-                        mines.add(cell)
-                elif len(knowledge.cells) == 0:
-                    del knowledge
+                if knowledge not in no_duplicates and len(knowledge.cells) > 0:
+                    # adding a hash function to Sentence class might improve speed by 
+                    # allowing "nu_dublicates" to be a set and avoid the slow list
+                    # checking process
+                    no_duplicates.append(knowledge)
+            self.knowledge = list(no_duplicates)
+            if len(self.knowledge) == reference_length:
+                break
 
-            for cell in safes:
-                self.mark_safe(cell)
-            for cell in mines:
-                self.mark_mine(cell)
-        
-        # remove any duplicates and other useless crap
-        no_duplicates = []
-        for knowledge in self.knowledge:
-            if knowledge not in no_duplicates and len(knowledge.cells) > 0:
-                no_duplicates.append(knowledge)
-        self.knowledge = list(no_duplicates)
-            
     def neighbouring_cells(self, cell):
         neighbours = set()
         removes = set()
@@ -265,15 +272,15 @@ class MinesweeperAI():
 
         for step_x in steps:
             for step_y in steps:
-                neighbours.add((i + step_x, j + step_y))  
-        removes.add(cell) 
+                neighbours.add((i + step_x, j + step_y))
+        removes.add(cell)
 
         for neighbour in neighbours:
             x, y = neighbour
             if x not in range(self.height) or y not in range(self.width):
                 removes.add(neighbour)
         return neighbours.difference(removes, self.moves_made)
-    
+
     def make_safe_move(self):
         """
         Returns a safe cell to choose on the Minesweeper board.
@@ -303,6 +310,6 @@ class MinesweeperAI():
         try:
             return random.choice(
                 list(possible_moves.difference(self.moves_made, self.mines))
-                )
+            )
         except IndexError:
             return None
